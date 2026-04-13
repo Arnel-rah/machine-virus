@@ -1,35 +1,20 @@
 import { Scene } from 'phaser';
+import { RuleTree } from '../entities/RuleTree';
+import { LEVELS } from '../data/levels';
 
-export class Game extends Scene
-{
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    msg_text : Phaser.GameObjects.Text;
+export class Game extends Scene {
+    private tree!: RuleTree;
 
-    constructor ()
-    {
+    constructor() {
         super('Game');
     }
 
-    create ()
-    {
-        this.camera = this.cameras.main;
-        this.camera.setBackgroundColor(0x00ff00);
+    create() {
+        this.add.text(512, 50, "/// INFILTRATION EN COURS ///", {
+            fontFamily: 'monospace', fontSize: '20px', color: '#00ff00'
+        }).setOrigin(0.5);
 
-        this.background = this.add.image(512, 384, 'background');
-        this.background.setAlpha(0.5);
-
-        this.msg_text = this.add.text(512, 384, 'Make something fun!\nand share it with us:\nsupport@phaser.io', {
-            fontFamily: 'Arial Black', fontSize: 38, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        });
-        this.msg_text.setOrigin(0.5);
-
-        this.input.once('pointerdown', () => {
-
-            this.scene.start('GameOver');
-
-        });
+        this.tree = new RuleTree(this);
+        this.tree.render(LEVELS[0].nodes);
     }
 }
