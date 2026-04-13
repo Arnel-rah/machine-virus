@@ -1,39 +1,50 @@
 import Phaser from 'phaser';
 
-export interface RuleNode {
-    id: string;
-    text: string;
-    status: 'PROTECTED' | 'VULNERABLE' | 'CORRUPTED';
-    x: number;
-    y: number;
-    children: string[];
-}
-
 export class RuleTree {
     private scene: Phaser.Scene;
-    private nodes: Map<string, RuleNode> = new Map();
 
     constructor(scene: Phaser.Scene) {
         this.scene = scene;
     }
 
-    addRule(node: RuleNode) {
-        this.nodes.set(node.id, node);
-        this.renderNode(node);
+    render(nodes: any[]) {
+        nodes.forEach(node => {
+            const color = node.status === 'CORRUPTED' ? 0xff0000 : (node.status === 'VULNERABLE' ? 0x00ff00 : 0x444444);
+
+            // Le "Cœur" de la règle
+            const circle = this.scene.add.circle(node.x, node.y, 25, color)
+                .setInteractive({ useHandCursor: true })
+                .setStrokeStyle(2, 0xffffff);
+
+            // Effet de glitch permanent si vulnérable
+            if (node.status === 'VULNERABLE') {
+                this.scene.tweens.add({
+                    targets: circle,
+                    alpha: 0.6,
+                    duration: 200,
+                    yoyo: true,
+                    repeat: -1
+                });
+            }
+
+            this.scene.add.text(node.x, node.y + 40, node.text, {
+                fontSize: '14px',
+                fontFamily: 'monospace',
+                color: '#00ff00',
+                backgroundColor: '#000000bb'
+            }).setOrigin(0.5);
+
+            circle.on('pointerdown', () => this.corruptNode(node, circle));
+        });
     }
 
-    private renderNode(node: RuleNode) {
-        const color = node.status === 'CORRUPTED' ? 0xff0000 : 0x00ff00;
-        const circle = this.scene.add.circle(node.x, node.y, 20, color)
-            .setInteractive({ useHandCursor: true });
-        this.scene.add.text(node.x, node.y + 30, node.text, {
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            color: '#ffffff'
-        }).setOrigin(0.5);
+    private corruptNode(node: any, visual: Phaser.GameObjects.Arc) {
+        if (node.status !== 'VULNERABLE') return;
 
-        circle.on('pointerdown', () => {
-            this.scene.events.emit('node-clicked', node);
-        });
+        node.status = 'CORRUPTED';
+        visual.setFillStyle(0xff0000);
+        this.scene.cameras.main.shake(250, 0.01);
+
+        console.log(`System Breach: ${node.text} compromised.`);
     }
 }
