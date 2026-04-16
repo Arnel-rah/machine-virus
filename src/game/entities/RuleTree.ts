@@ -1,15 +1,24 @@
 import * as Phaser from "phaser";
 
+interface GameNode {
+  id: string;
+  text: string;
+  status: 'PROTECTED' | 'VULNERABLE' | 'CORRUPTED';
+  x: number;
+  y: number;
+  children: string[];
+}
+
 export class RuleTree {
   private scene: Phaser.Scene;
-  private nodesMap: Map<string, any> = new Map();
+  private nodesMap: Map<string, GameNode> = new Map();
   private visualsMap: Map<string, Phaser.GameObjects.Arc> = new Map();
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
   }
 
-  render(nodes: any[]) {
+  render(nodes: GameNode[]) {
     nodes.forEach((node) => {
       this.nodesMap.set(node.id, node);
 
@@ -23,7 +32,8 @@ export class RuleTree {
       const circle = this.scene.add
         .circle(node.x, node.y, 25, color)
         .setInteractive({ useHandCursor: true })
-        .setStrokeStyle(2, 0xffffff);
+        .setStrokeStyle(2, 0xffffff)
+        .setDepth(1);
 
       this.visualsMap.set(node.id, circle);
 
@@ -32,13 +42,15 @@ export class RuleTree {
       }
 
       this.scene.add
-        .text(node.x, node.y + 40, node.text, {
-          fontSize: "14px",
+        .text(node.x, node.y + 45, node.text, {
+          fontSize: "12px",
           fontFamily: "monospace",
           color: "#00ff00",
           backgroundColor: "#000000bb",
+          padding: { x: 4, y: 2 }
         })
-        .setOrigin(0.5);
+        .setOrigin(0.5)
+        .setDepth(2);
 
       circle.on("pointerdown", () => this.corruptNode(node, circle));
     });
@@ -47,15 +59,17 @@ export class RuleTree {
   private addGlitchEffect(target: Phaser.GameObjects.Arc) {
     this.scene.tweens.add({
       targets: target,
-      alpha: 0.5,
-      duration: 200,
+      alpha: 0.4,
+      duration: 250,
       yoyo: true,
       repeat: -1,
+      ease: 'Cubic.easeInOut'
     });
   }
 
-  private corruptNode(node: any, visual: Phaser.GameObjects.Arc) {
+  private corruptNode(node: GameNode, visual: Phaser.GameObjects.Arc) {
     if (node.status !== "VULNERABLE") return;
+
     node.status = "CORRUPTED";
 
     visual.setFillStyle(0xff0000);
@@ -63,16 +77,17 @@ export class RuleTree {
     visual.setAlpha(1);
     this.scene.events.emit("node-corrupted", node);
     node.children.forEach((childId: string) => {
-        const childNode = this.nodesMap.get(childId);
-        const childVisual = this.visualsMap.get(childId);
+      const childNode = this.nodesMap.get(childId);
+      const childVisual = this.visualsMap.get(childId);
 
-        if (childNode && childNode.status === "PROTECTED") {
-            childNode.status = "VULNERABLE";
-            if (childVisual) {
-                childVisual.setFillStyle(0x00ff00);
-                this.addGlitchEffect(childVisual);
-            }
+      if (childNode && childNode.status === "PROTECTED") {
+        childNode.status = "VULNERABLE";
+        if (childVisual) {
+          childVisual.setFillStyle(0x00ff00);
+          this.addGlitchEffect(childVisual);
+          this.scene.events.emit("node-unlocked", childNode);
         }
+      }
     });
-}
+  }
 }
