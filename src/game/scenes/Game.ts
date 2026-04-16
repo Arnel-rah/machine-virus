@@ -27,7 +27,6 @@ export class Game extends Phaser.Scene {
     this.timeLeft = 60;
     this.infiltrationPercent = 0;
 
-    // --- Configuration Visuelle ---
     this.cameras.main.setBackgroundColor("#050505");
     this.add.grid(512, 384, 1024, 768, 32, 32, 0x000000, 0, 0x00ff00, 0.05);
 
@@ -40,7 +39,6 @@ export class Game extends Phaser.Scene {
       });
     });
 
-    // --- Interface UI ---
     this.add.rectangle(512, 100, 400, 20, 0x000000).setStrokeStyle(1, 0x00ff00);
     this.progressFill = this.add.graphics();
     this.percentText = this.add
@@ -74,20 +72,15 @@ export class Game extends Phaser.Scene {
       loop: -1,
     });
 
-    // --- Systèmes de Jeu ---
     this.tree = new RuleTree(this);
     this.tree.render(LEVELS[0].nodes);
     this.firewalls = this.add.group({ runChildUpdate: true });
 
-    // Sécurité initiale (Root)
     const root = LEVELS[0].nodes.find((n) => n.id === "root");
     if (root) {
       this.firewalls.add(new Firewall(this, root.x, root.y, 60, 3));
     }
 
-    // --- Gestion des Événements ---
-
-    // ÉCOUTEUR CRITIQUE : Validation du clic
     this.events.on(
       "attempt-node-corruption",
       (data: { node: any; visual: Phaser.GameObjects.Arc }) => {
@@ -106,7 +99,6 @@ export class Game extends Phaser.Scene {
           );
 
           if (dist < 35) {
-            // Zone de collision
             intercepted = true;
           }
         });
@@ -114,7 +106,6 @@ export class Game extends Phaser.Scene {
         if (intercepted) {
           this.handleSecurityAlert();
         } else {
-          // Succès : On demande au RuleTree de finaliser la corruption
           this.tree.executeCorruption(data.node, data.visual);
         }
       },
@@ -128,8 +119,6 @@ export class Game extends Phaser.Scene {
 
     this.events.on("node-unlocked", (node: any) => {
       this.addTerminalLog(`ACCESS GRANTED: ${node.text}`);
-
-      // On corse le jeu : Double firewall (ciseaux) pour les nouveaux nœuds
       const f1 = new Firewall(this, node.x, node.y, 65, 4.5);
       const f2 = new Firewall(this, node.x, node.y, 65, -4.5);
       this.firewalls.addMultiple([f1, f2]);
@@ -156,7 +145,7 @@ export class Game extends Phaser.Scene {
 
   private handleSecurityAlert() {
     this.updateInfiltration(-15);
-    this.timeLeft -= 2; // Pénalité de temps
+    this.timeLeft -= 2;
     this.addTerminalLog("ALERT: PACKET INTERCEPTED! -15%");
     this.cameras.main.flash(150, 200, 0, 0);
     this.cameras.main.shake(200, 0.01);
@@ -183,6 +172,21 @@ export class Game extends Phaser.Scene {
     this.logText.setText(this.logLines.join("\n"));
   }
 
+  private applySystemDefense() {
+    if (this.infiltrationPercent > 70) {
+      this.firewalls.getChildren().forEach((f) => {
+        if (f instanceof Firewall) f.setSpeedMultiplier(1.5);
+      });
+      this.addTerminalLog("CRITICAL: ANTIVIRUS HEURISTICS ENGAGED");
+    }
+
+    const hunter = this.firewalls.getFirstAlive();
+    if (hunter && this.infiltrationPercent > 40) {
+      this.physics.moveToObject(hunter, this.input.activePointer, 150);
+      if (hunter instanceof Phaser.GameObjects.Shape) hunter.setFillStyle(0xff0000);
+    }
+  }
+
   update(time: number, delta: number) {
     if (this.isGameOver) return;
 
@@ -198,13 +202,14 @@ export class Game extends Phaser.Scene {
       this.cameras.main.fade(1000, 150, 0, 0);
     }
 
+    if (this.timeLeft < 15) {
+      this.cameras.main.shake(100, 0.002 * (15 / this.timeLeft));
+    }
+
     this.firewalls.getChildren().forEach((child) => {
       (child as Firewall).update(time, delta);
     });
 
-    // const hunter = this.firewalls.getFirstAlive();
-    // if (hunter) {
-    //   this.physics.moveToObject(hunter, this.input.activePointer, 120);
-    // }
+    this.applySystemDefense();
   }
 }
