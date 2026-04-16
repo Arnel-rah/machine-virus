@@ -43,21 +43,36 @@ export class Game extends Phaser.Scene {
     // --- Interface UI ---
     this.add.rectangle(512, 100, 400, 20, 0x000000).setStrokeStyle(1, 0x00ff00);
     this.progressFill = this.add.graphics();
-    this.percentText = this.add.text(512, 130, "INFILTRATION: 0%", {
-      fontFamily: "monospace", fontSize: "18px", color: "#00ff00",
-    }).setOrigin(0.5);
+    this.percentText = this.add
+      .text(512, 130, "INFILTRATION: 0%", {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#00ff00",
+      })
+      .setOrigin(0.5);
 
-    this.timerText = this.add.text(900, 50, "TRACE: 60s", {
-      fontFamily: "monospace", fontSize: "22px", color: "#ff0000",
-    }).setOrigin(0.5);
+    this.timerText = this.add
+      .text(900, 50, "TRACE: 60s", {
+        fontFamily: "monospace",
+        fontSize: "22px",
+        color: "#ff0000",
+      })
+      .setOrigin(0.5);
 
     this.logText = this.add.text(20, 600, "", {
-      fontFamily: "monospace", fontSize: "14px", color: "#00ff00",
+      fontFamily: "monospace",
+      fontSize: "14px",
+      color: "#00ff00",
     });
 
     this.scanline = this.add.graphics();
     this.scanline.fillStyle(0x00ff00, 0.1).fillRect(0, 0, 1024, 2);
-    this.tweens.add({ targets: this.scanline, y: 768, duration: 3000, loop: -1 });
+    this.tweens.add({
+      targets: this.scanline,
+      y: 768,
+      duration: 3000,
+      loop: -1,
+    });
 
     // --- Systèmes de Jeu ---
     this.tree = new RuleTree(this);
@@ -73,28 +88,37 @@ export class Game extends Phaser.Scene {
     // --- Gestion des Événements ---
 
     // ÉCOUTEUR CRITIQUE : Validation du clic
-    this.events.on("attempt-node-corruption", (data: { node: any, visual: Phaser.GameObjects.Arc }) => {
-      if (this.isGameOver) return;
+    this.events.on(
+      "attempt-node-corruption",
+      (data: { node: any; visual: Phaser.GameObjects.Arc }) => {
+        if (this.isGameOver) return;
 
-      let intercepted = false;
-      const pointer = this.input.activePointer;
+        let intercepted = false;
+        const pointer = this.input.activePointer;
 
-      this.firewalls.getChildren().forEach((child) => {
-        const firewall = child as Firewall;
-        const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, firewall.x, firewall.y);
+        this.firewalls.getChildren().forEach((child) => {
+          const firewall = child as Firewall;
+          const dist = Phaser.Math.Distance.Between(
+            pointer.x,
+            pointer.y,
+            firewall.x,
+            firewall.y,
+          );
 
-        if (dist < 35) { // Zone de collision
-          intercepted = true;
+          if (dist < 35) {
+            // Zone de collision
+            intercepted = true;
+          }
+        });
+
+        if (intercepted) {
+          this.handleSecurityAlert();
+        } else {
+          // Succès : On demande au RuleTree de finaliser la corruption
+          this.tree.executeCorruption(data.node, data.visual);
         }
-      });
-
-      if (intercepted) {
-        this.handleSecurityAlert();
-      } else {
-        // Succès : On demande au RuleTree de finaliser la corruption
-        this.tree.executeCorruption(data.node, data.visual);
-      }
-    });
+      },
+    );
 
     this.events.on("node-corrupted", (node: any) => {
       this.addTerminalLog(`SUCCESS: ${node.text} COMPROMISED`);
@@ -113,7 +137,11 @@ export class Game extends Phaser.Scene {
   }
 
   private updateInfiltration(amount: number) {
-    this.infiltrationPercent = Phaser.Math.Clamp(this.infiltrationPercent + amount, 0, 100);
+    this.infiltrationPercent = Phaser.Math.Clamp(
+      this.infiltrationPercent + amount,
+      0,
+      100,
+    );
     this.progressFill.clear();
     this.progressFill.fillStyle(0x00ff00, 0.5);
     this.progressFill.fillRect(312, 90, 4 * this.infiltrationPercent, 20);
@@ -158,7 +186,9 @@ export class Game extends Phaser.Scene {
   update(time: number, delta: number) {
     if (this.isGameOver) return;
 
-    this.timeLeft -= delta / 1000;
+    const alertMultiplier = 1 + this.infiltrationPercent / 100;
+    this.timeLeft -= (delta / 1000) * alertMultiplier;
+
     this.timerText.setText(`TRACE: ${Math.ceil(this.timeLeft)}s`);
 
     if (this.timeLeft <= 0) {
@@ -171,5 +201,10 @@ export class Game extends Phaser.Scene {
     this.firewalls.getChildren().forEach((child) => {
       (child as Firewall).update(time, delta);
     });
+
+    // const hunter = this.firewalls.getFirstAlive();
+    // if (hunter) {
+    //   this.physics.moveToObject(hunter, this.input.activePointer, 120);
+    // }
   }
 }
