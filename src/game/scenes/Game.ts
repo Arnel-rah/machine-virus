@@ -25,9 +25,12 @@ export class Game extends Phaser.Scene {
   create() {
     this.isGameOver = false;
     this.timeLeft = 60;
+    this.infiltrationPercent = 0;
 
+    // --- Configuration Visuelle ---
     this.cameras.main.setBackgroundColor("#050505");
     this.add.grid(512, 384, 1024, 768, 32, 32, 0x000000, 0, 0x00ff00, 0.05);
+
     const networkLines = this.add.graphics();
     networkLines.lineStyle(2, 0x00ff00, 0.2);
     LEVELS[0].nodes.forEach((node) => {
@@ -36,40 +39,62 @@ export class Game extends Phaser.Scene {
         if (child) networkLines.lineBetween(node.x, node.y, child.x, child.y);
       });
     });
+
+    // --- Interface UI ---
     this.add.rectangle(512, 100, 400, 20, 0x000000).setStrokeStyle(1, 0x00ff00);
     this.progressFill = this.add.graphics();
-    this.percentText = this.add
-      .text(512, 130, "INFILTRATION: 0%", {
-        fontFamily: "monospace",
-        fontSize: "18px",
-        color: "#00ff00",
-      })
-      .setOrigin(0.5);
+    this.percentText = this.add.text(512, 130, "INFILTRATION: 0%", {
+      fontFamily: "monospace", fontSize: "18px", color: "#00ff00",
+    }).setOrigin(0.5);
 
-    this.timerText = this.add
-      .text(900, 50, "TRACE: 60s", {
-        fontFamily: "monospace",
-        fontSize: "22px",
-        color: "#ff0000",
-      })
-      .setOrigin(0.5);
-    this.scanline = this.add.graphics();
-    this.scanline.fillStyle(0x00ff00, 0.1).fillRect(0, 0, 1024, 2);
-    this.tweens.add({
-      targets: this.scanline,
-      y: 768,
-      duration: 3000,
-      loop: -1,
-    });
+    this.timerText = this.add.text(900, 50, "TRACE: 60s", {
+      fontFamily: "monospace", fontSize: "22px", color: "#ff0000",
+    }).setOrigin(0.5);
 
     this.logText = this.add.text(20, 600, "", {
-      fontFamily: "monospace",
-      fontSize: "14px",
-      color: "#00ff00",
+      fontFamily: "monospace", fontSize: "14px", color: "#00ff00",
     });
+
+    this.scanline = this.add.graphics();
+    this.scanline.fillStyle(0x00ff00, 0.1).fillRect(0, 0, 1024, 2);
+    this.tweens.add({ targets: this.scanline, y: 768, duration: 3000, loop: -1 });
+
+    // --- Systèmes de Jeu ---
     this.tree = new RuleTree(this);
     this.tree.render(LEVELS[0].nodes);
     this.firewalls = this.add.group({ runChildUpdate: true });
+
+    // Sécurité initiale (Root)
+    const root = LEVELS[0].nodes.find((n) => n.id === "root");
+    if (root) {
+      this.firewalls.add(new Firewall(this, root.x, root.y, 60, 3));
+    }
+
+    // --- Gestion des Événements ---
+
+    // ÉCOUTEUR CRITIQUE : Validation du clic
+    this.events.on("attempt-node-corruption", (data: { node: any, visual: Phaser.GameObjects.Arc }) => {
+      if (this.isGameOver) return;
+
+      let intercepted = false;
+      const pointer = this.input.activePointer;
+
+      this.firewalls.getChildren().forEach((child) => {
+        const firewall = child as Firewall;
+        const dist = Phaser.Math.Distance.Between(pointer.x, pointer.y, firewall.x, firewall.y);
+
+        if (dist < 35) { // Zone de collision
+          intercepted = true;
+        }
+      });
+
+      if (intercepted) {
+        this.handleSecurityAlert();
+      } else {
+        // Succès : On demande au RuleTree de finaliser la corruption
+        this.tree.executeCorruption(data.node, data.visual);
+      }
+    });
 
     this.events.on("node-corrupted", (node: any) => {
       this.addTerminalLog(`SUCCESS: ${node.text} COMPROMISED`);
@@ -80,42 +105,15 @@ export class Game extends Phaser.Scene {
     this.events.on("node-unlocked", (node: any) => {
       this.addTerminalLog(`ACCESS GRANTED: ${node.text}`);
 
-      const f1 = new Firewall(this, node.x, node.y, 65, 3.5);
-      const f2 = new Firewall(this, node.x, node.y, 65, -3.5);
-
-      this.firewalls.add(f1);
-      this.firewalls.add(f2);
-    });
-
-    const root = LEVELS[0].nodes.find((n) => n.id === "root");
-    if (root) {
-      this.firewalls.add(new Firewall(this, root.x, root.y, 60, 2.5));
-    }
-
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      if (this.isGameOver) return;
-
-      this.firewalls.getChildren().forEach((child) => {
-        const firewall = child as Firewall;
-        const dist = Phaser.Math.Distance.Between(
-          pointer.x,
-          pointer.y,
-          firewall.x,
-          firewall.y,
-        );
-        if (dist < 30) {
-          this.handleSecurityAlert();
-        }
-      });
+      // On corse le jeu : Double firewall (ciseaux) pour les nouveaux nœuds
+      const f1 = new Firewall(this, node.x, node.y, 65, 4.5);
+      const f2 = new Firewall(this, node.x, node.y, 65, -4.5);
+      this.firewalls.addMultiple([f1, f2]);
     });
   }
 
   private updateInfiltration(amount: number) {
-    this.infiltrationPercent = Phaser.Math.Clamp(
-      this.infiltrationPercent + amount,
-      0,
-      100,
-    );
+    this.infiltrationPercent = Phaser.Math.Clamp(this.infiltrationPercent + amount, 0, 100);
     this.progressFill.clear();
     this.progressFill.fillStyle(0x00ff00, 0.5);
     this.progressFill.fillRect(312, 90, 4 * this.infiltrationPercent, 20);
@@ -130,6 +128,7 @@ export class Game extends Phaser.Scene {
 
   private handleSecurityAlert() {
     this.updateInfiltration(-15);
+    this.timeLeft -= 2; // Pénalité de temps
     this.addTerminalLog("ALERT: PACKET INTERCEPTED! -15%");
     this.cameras.main.flash(150, 200, 0, 0);
     this.cameras.main.shake(200, 0.01);
@@ -145,7 +144,6 @@ export class Game extends Phaser.Scene {
       speed: { min: 50, max: 150 },
       scale: { start: 1, end: 0 },
       lifespan: 600,
-      gravityY: 0,
       quantity: 15,
     });
     this.time.delayedCall(100, () => emitter.stop());
