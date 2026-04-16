@@ -56,25 +56,23 @@ export class RuleTree {
 
   private corruptNode(node: any, visual: Phaser.GameObjects.Arc) {
     if (node.status !== "VULNERABLE") return;
-
     node.status = "CORRUPTED";
+
     visual.setFillStyle(0xff0000);
     this.scene.tweens.killTweensOf(visual);
     visual.setAlpha(1);
-
     this.scene.events.emit("node-corrupted", node);
     node.children.forEach((childId: string) => {
-      const childNode = this.nodesMap.get(childId);
-      const childVisual = this.visualsMap.get(childId);
+        const childNode = this.nodesMap.get(childId);
+        const childVisual = this.visualsMap.get(childId);
 
-      if (childNode && childNode.status === "PROTECTED") {
-        childNode.status = "VULNERABLE";
-        if (childVisual) {
-          childVisual.setFillStyle(0x00ff00);
-          this.addGlitchEffect(childVisual);
+        if (childNode && childNode.status === "PROTECTED") {
+            childNode.status = "VULNERABLE";
+            if (childVisual) {
+                childVisual.setFillStyle(0x00ff00);
+                this.addGlitchEffect(childVisual);
+            }
         }
-        this.scene.events.emit("node-unlocked", childNode);
-      }
     });
-  }
+}
 }
