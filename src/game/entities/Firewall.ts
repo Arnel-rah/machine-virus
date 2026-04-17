@@ -30,9 +30,19 @@ export class Firewall extends Phaser.GameObjects.Arc {
         this.speedMultiplier = multiplier;
     }
 
+    public setCenter(x: number, y: number) {
+        this.center.x = x;
+        this.center.y = y;
+    }
+
     update(time: number, delta: number) {
         this.orbitAngle += (this.orbitSpeed * this.speedMultiplier) * (delta / 1000);
+
         this.x = this.center.x + Math.cos(this.orbitAngle) * this.distance;
         this.y = this.center.y + Math.sin(this.orbitAngle) * this.distance;
+
+        if (this.body) {
+            (this.body as Phaser.Physics.Arcade.Body).reset(this.x, this.y);
+        }
     }
 }
