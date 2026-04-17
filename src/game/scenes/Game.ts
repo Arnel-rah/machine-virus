@@ -180,10 +180,11 @@ export class Game extends Phaser.Scene {
       this.addTerminalLog("CRITICAL: ANTIVIRUS HEURISTICS ENGAGED");
     }
 
-    const hunter = this.firewalls.getFirstAlive();
+    const hunter = this.firewalls.getFirstAlive() as Firewall;
+
     if (hunter && this.infiltrationPercent > 40) {
       this.physics.moveToObject(hunter, this.input.activePointer, 150);
-      if (hunter instanceof Phaser.GameObjects.Shape) hunter.setFillStyle(0xff0000);
+      (hunter as Firewall).setFillStyle(0xff0000);
     }
   }
 
