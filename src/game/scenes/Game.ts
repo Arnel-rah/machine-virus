@@ -5,97 +5,103 @@ import { Machine } from "../entities/Machine";
 export class Game extends Phaser.Scene {
   private player!: Player;
   private machines: Machine[] = [];
-  private conveyorSpeed: number = 180;
   private production: number = 0;
   private productionText!: Phaser.GameObjects.Text;
+  private conveyor!: Phaser.GameObjects.TileSprite;
+  private overheatLevel: number = 0;
+  private overheatBar!: Phaser.GameObjects.Graphics;
+  private isGameOver: boolean = false;
 
   constructor() {
     super({ key: "Game" });
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#1a1a2e");
+    this.isGameOver = false;
+    this.production = 0;
+    this.overheatLevel = 0;
 
-    this.createConveyorBackground();
+    this.add.image(512, 288, "background");
+    this.conveyor = this.add.tileSprite(512, 460, 1024, 160, "conveyor");
+    this.add.rectangle(512, 520, 1024, 90, 0x1f1f2e);
+
     this.spawnPlayer();
+    this.setupUI();
     this.spawnInitialMachines();
 
-    this.setupUI();
-    this.setupInput();
+    this.tweens.add({
+      targets: this.conveyor,
+      tilePositionX: -400,
+      duration: 1800,
+      repeat: -1,
+      ease: "Linear"
+    });
 
     this.time.addEvent({
-      delay: 2200,
+      delay: 1600,
       callback: this.spawnMachine,
       callbackScope: this,
-      loop: true,
-    });
-  }
-
-  private createConveyorBackground() {
-
-   const conveyor = this.add.tileSprite(512, 480, 1024, 120, "conveyor") as Phaser.GameObjects.TileSprite;
-    this.tweens.add({
-      targets: conveyor,
-      tilePositionX: -400,
-      duration: 2800,
-      repeat: -1,
-      ease: "Linear",
+      loop: true
     });
 
-    this.add.rectangle(512, 520, 1024, 60, 0x333344);
+    this.time.addEvent({
+      delay: 300,
+      callback: this.updateOverheat,
+      callbackScope: this,
+      loop: true
+    });
+
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.checkMachineRepair(pointer);
+    });
   }
 
   private spawnPlayer() {
-    this.player = new Player(this, 180, 400);
+    this.player = new Player(this, 160, 380);
+  }
+
+  private setupUI() {
+    this.productionText = this.add.text(40, 25, "PRODUCTION: 00000", {
+      fontFamily: "monospace",
+      fontSize: "27px",
+      color: "#00ffcc"
+    }).setShadow(2, 2, "#000", 5);
+
+    this.add.rectangle(512, 45, 420, 22, 0x330000).setStrokeStyle(3, 0xff4444);
+    this.overheatBar = this.add.graphics();
   }
 
   private spawnInitialMachines() {
     this.spawnMachine();
-    this.time.delayedCall(800, () => this.spawnMachine());
+    this.time.delayedCall(700, () => this.spawnMachine());
   }
 
   private spawnMachine() {
-    const x = 1100 + Phaser.Math.Between(-40, 80);
-    const y = 380 + Phaser.Math.Between(-30, 40);
+    if (this.isGameOver) return;
+
+    const x = 1100;
+    const y = 355 + Phaser.Math.Between(-55, 55);
 
     const machine = new Machine(this, {
       type: Phaser.Math.RND.pick(["gear", "piston", "belt"]),
       x,
       y,
-      broken: true,
+      broken: true
     });
 
     this.machines.push(machine);
+
     this.tweens.add({
       targets: machine,
-      x: -150,
-      duration: 6200,
+      x: -180,
+      duration: 6800,
       ease: "Linear",
       onComplete: () => {
         const index = this.machines.indexOf(machine);
         if (index > -1) this.machines.splice(index, 1);
         machine.destroy();
-      },
-    });
-  }
-
-  private setupUI() {
-    this.productionText = this.add.text(40, 30, "PRODUCTION: 00000", {
-      fontFamily: "monospace",
-      fontSize: "26px",
-      color: "#00ffcc",
-    });
-
-    this.add.text(40, 70, "REPAIR THE MACHINES BEFORE THEY PASS!", {
-      fontFamily: "monospace",
-      fontSize: "16px",
-      color: "#ff9966",
-    });
-  }
-
-  private setupInput() {
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.checkMachineRepair(pointer);
+        this.increaseOverheat(8);
+      }
     });
   }
 
@@ -106,22 +112,61 @@ export class Game extends Phaser.Scene {
 
       if (bounds.contains(pointer.x, pointer.y) && machine.isRepairable()) {
         machine.repair();
-        this.production += 250;
-        this.updateProductionUI();
-
-        this.cameras.main.flash(80, 100, 255, 180);
+        this.repairSuccess();
         break;
       }
     }
   }
 
-  private updateProductionUI() {
-    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, "0")}`);
+  private updateOverheat() {
+    if (this.isGameOver) return;
+
+    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + 0.6, 0, 100);
+    this.drawOverheatBar();
+
+    if (this.overheatLevel >= 100) {
+      this.triggerGameOver();
+    }
+  }
+
+  private drawOverheatBar() {
+    this.overheatBar.clear();
+    this.overheatBar.fillStyle(0xff3366, 0.9);
+    this.overheatBar.fillRect(304, 35, 4.1 * this.overheatLevel, 18);
+  }
+
+  private increaseOverheat(amount: number) {
+    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + amount, 0, 100);
+    this.drawOverheatBar();
+  }
+
+  public repairSuccess() {
+    this.production += 320;
+    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
+
+    this.overheatLevel = Math.max(0, this.overheatLevel - 14);
+    this.drawOverheatBar();
+
+    this.cameras.main.flash(90, 120, 255, 140);
+  }
+
+  private triggerGameOver() {
+    this.isGameOver = true;
+    this.cameras.main.shake(1200, 0.015);
+
+    this.add.text(512, 260, "OVERHEAT CRITICAL\nFACTORY EXPLOSION", {
+      fontFamily: "monospace",
+      fontSize: "48px",
+      color: "#ff0000",
+      align: "center"
+    }).setOrigin(0.5);
+
+    this.time.delayedCall(2500, () => {
+      this.scene.restart();
+    });
   }
 
   update() {
     this.player.update();
-
-    if (this.production > 3000) this.conveyorSpeed = 240;
   }
 }
