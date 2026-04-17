@@ -33,7 +33,7 @@ export class Game extends Phaser.Scene {
 
   private createConveyorBackground() {
 
-    const conveyor = this.add.tileSprite(512, 480, 1024, 120, "conveyor");
+   const conveyor = this.add.tileSprite(512, 480, 1024, 120, "conveyor") as Phaser.GameObjects.TileSprite;
     this.tweens.add({
       targets: conveyor,
       tilePositionX: -400,
