@@ -11,6 +11,7 @@ export class Game extends Phaser.Scene {
   private overheatLevel: number = 0;
   private overheatBar!: Phaser.GameObjects.Graphics;
   private isGameOver: boolean = false;
+  private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super({ key: "Game" });
@@ -25,6 +26,7 @@ export class Game extends Phaser.Scene {
     this.conveyor = this.add.tileSprite(512, 460, 1024, 160, "conveyor");
     this.add.rectangle(512, 520, 1024, 90, 0x1f1f2e);
 
+    this.createParticles();
     this.spawnPlayer();
     this.setupUI();
     this.spawnInitialMachines();
@@ -54,6 +56,17 @@ export class Game extends Phaser.Scene {
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.checkMachineRepair(pointer);
     });
+  }
+
+  private createParticles() {
+    this.repairEmitter = this.add.particles(0, 0, "pixel", {
+      speed: { min: 100, max: 300 },
+      scale: { start: 1, end: 0 },
+      lifespan: 600,
+      quantity: 1,
+      blendMode: Phaser.BlendModes.ADD,
+      tint: 0x00ffcc
+    }).setDepth(100);
   }
 
   private spawnPlayer() {
@@ -112,10 +125,23 @@ export class Game extends Phaser.Scene {
 
       if (bounds.contains(pointer.x, pointer.y) && machine.isRepairable()) {
         machine.repair();
-        this.repairSuccess();
+        this.repairSuccess(pointer.x, pointer.y);
         break;
       }
     }
+  }
+
+  private repairSuccess(x: number, y: number) {
+    this.production += 320;
+    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
+
+    this.overheatLevel = Math.max(0, this.overheatLevel - 14);
+    this.drawOverheatBar();
+
+    this.cameras.main.flash(90, 120, 255, 140);
+
+    // Particules d'étincelles
+    this.repairEmitter.explode(25, x, y);
   }
 
   private updateOverheat() {
@@ -138,16 +164,6 @@ export class Game extends Phaser.Scene {
   private increaseOverheat(amount: number) {
     this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + amount, 0, 100);
     this.drawOverheatBar();
-  }
-
-  public repairSuccess() {
-    this.production += 320;
-    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
-
-    this.overheatLevel = Math.max(0, this.overheatLevel - 14);
-    this.drawOverheatBar();
-
-    this.cameras.main.flash(90, 120, 255, 140);
   }
 
   private triggerGameOver() {
