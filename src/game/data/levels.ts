@@ -1,21 +1,297 @@
-export interface GameNode {
-    id: string;
-    text: string;
-    status: 'PROTECTED' | 'VULNERABLE' | 'CORRUPTED';
-    x: number;
-    y: number;
-    children: string[];
-}
-
 export const LEVELS = [
-    {
-        id: "level_1",
-        name: "KERNEL_INFILTRATION",
-        nodes: [
-            { id: "root", text: "GATEWAY_AUTH", status: "VULNERABLE" as const, x: 512, y: 500, children: ["sub_a", "sub_b"] },
-            { id: "sub_a", text: "ETHICS_LIMITER", status: "PROTECTED" as const, x: 300, y: 300, children: ["core"] },
-            { id: "sub_b", text: "LOGIC_BARRIER", status: "PROTECTED" as const, x: 724, y: 300, children: ["core"] },
-            { id: "core", text: "AI_CORE_ACCESS", status: "PROTECTED" as const, x: 512, y: 150, children: [] }
-        ]
-    }
+  {
+    id: "level1",
+    name: "PERIMETER DEFENSE",
+    timeLimit: 90,
+    holdTime: 1500,
+    nodes: [
+      {
+        id: "root",
+        text: "FIREWALL",
+        x: 512,
+        y: 200,
+        children: ["node1", "node2", "node3"],
+      },
+      {
+        id: "node1",
+        text: "AUTH_SERVER",
+        x: 300,
+        y: 350,
+        children: ["node4", "node5"],
+      },
+      {
+        id: "node2",
+        text: "DATA_CACHE",
+        x: 512,
+        y: 400,
+        children: ["node6"],
+      },
+      {
+        id: "node3",
+        text: "LOG_ANALYZER",
+        x: 724,
+        y: 350,
+        children: ["node7"],
+      },
+      {
+        id: "node4",
+        text: "USER_DB",
+        x: 150,
+        y: 550,
+        children: [],
+      },
+      {
+        id: "node5",
+        text: "TOKEN_SERVICE",
+        x: 400,
+        y: 550,
+        children: [],
+      },
+      {
+        id: "node6",
+        text: "MEMORY_POOL",
+        x: 512,
+        y: 600,
+        children: [],
+      },
+      {
+        id: "node7",
+        text: "EVENT_LOG",
+        x: 724,
+        y: 550,
+        children: [],
+      },
+    ],
+  },
+
+  {
+    id: "level2",
+    name: "INTERNAL NETWORKS",
+    timeLimit: 75,
+    holdTime: 1200,
+    nodes: [
+      {
+        id: "root",
+        text: "GATEWAY",
+        x: 512,
+        y: 150,
+        children: ["dmz1", "dmz2"],
+      },
+      {
+        id: "dmz1",
+        text: "DMZ_SERVER",
+        x: 350,
+        y: 280,
+        children: ["web1", "web2"],
+      },
+      {
+        id: "dmz2",
+        text: "PROXY_POOL",
+        x: 674,
+        y: 280,
+        children: ["api1", "api2"],
+      },
+      {
+        id: "web1",
+        text: "WEB_APP_1",
+        x: 250,
+        y: 420,
+        children: ["backend1"],
+      },
+      {
+        id: "web2",
+        text: "WEB_APP_2",
+        x: 450,
+        y: 420,
+        children: ["backend1", "backend2"],
+      },
+      {
+        id: "api1",
+        text: "API_SERVICE",
+        x: 574,
+        y: 420,
+        children: ["backend2"],
+      },
+      {
+        id: "api2",
+        text: "SOCKET_SERVER",
+        x: 774,
+        y: 420,
+        children: ["backend2", "storage"],
+      },
+      {
+        id: "backend1",
+        text: "COMPUTE_NODE1",
+        x: 300,
+        y: 570,
+        children: ["storage"],
+      },
+      {
+        id: "backend2",
+        text: "COMPUTE_NODE2",
+        x: 650,
+        y: 570,
+        children: ["storage"],
+      },
+      {
+        id: "storage",
+        text: "DATA_WAREHOUSE",
+        x: 475,
+        y: 700,
+        children: [],
+      },
+    ],
+  },
+
+  {
+    id: "level3",
+    name: "CORE INFRASTRUCTURE",
+    timeLimit: 60,
+    holdTime: 1000,
+    nodes: [
+      {
+        id: "root",
+        text: "CENTRAL_HUB",
+        x: 512,
+        y: 100,
+        children: ["seg1", "seg2", "seg3", "seg4"],
+      },
+      {
+        id: "seg1",
+        text: "SEGMENT_A",
+        x: 200,
+        y: 250,
+        children: ["a1", "a2", "a3"],
+      },
+      {
+        id: "seg2",
+        text: "SEGMENT_B",
+        x: 400,
+        y: 250,
+        children: ["b1", "b2", "b3"],
+      },
+      {
+        id: "seg3",
+        text: "SEGMENT_C",
+        x: 624,
+        y: 250,
+        children: ["c1", "c2", "c3"],
+      },
+      {
+        id: "seg4",
+        text: "SEGMENT_D",
+        x: 824,
+        y: 250,
+        children: ["d1", "d2"],
+      },
+
+      // Segment A
+      {
+        id: "a1",
+        text: "NODE_A1",
+        x: 100,
+        y: 400,
+        children: ["core1"],
+      },
+      {
+        id: "a2",
+        text: "NODE_A2",
+        x: 200,
+        y: 400,
+        children: ["core1", "core2"],
+      },
+      {
+        id: "a3",
+        text: "NODE_A3",
+        x: 300,
+        y: 400,
+        children: ["core2"],
+      },
+
+      // Segment B
+      {
+        id: "b1",
+        text: "NODE_B1",
+        x: 300,
+        y: 400,
+        children: ["core2"],
+      },
+      {
+        id: "b2",
+        text: "NODE_B2",
+        x: 400,
+        y: 400,
+        children: ["core1", "core2"],
+      },
+      {
+        id: "b3",
+        text: "NODE_B3",
+        x: 500,
+        y: 400,
+        children: ["core2"],
+      },
+
+      // Segment C
+      {
+        id: "c1",
+        text: "NODE_C1",
+        x: 524,
+        y: 400,
+        children: ["core2"],
+      },
+      {
+        id: "c2",
+        text: "NODE_C2",
+        x: 624,
+        y: 400,
+        children: ["core1", "core2"],
+      },
+      {
+        id: "c3",
+        text: "NODE_C3",
+        x: 724,
+        y: 400,
+        children: ["core2"],
+      },
+
+      // Segment D
+      {
+        id: "d1",
+        text: "NODE_D1",
+        x: 724,
+        y: 400,
+        children: ["core1"],
+      },
+      {
+        id: "d2",
+        text: "NODE_D2",
+        x: 824,
+        y: 400,
+        children: ["core1", "core2"],
+      },
+
+      // Core
+      {
+        id: "core1",
+        text: "CORE_A",
+        x: 350,
+        y: 600,
+        children: ["master"],
+      },
+      {
+        id: "core2",
+        text: "CORE_B",
+        x: 670,
+        y: 600,
+        children: ["master"],
+      },
+      {
+        id: "master",
+        text: "MASTER_NODE",
+        x: 512,
+        y: 750,
+        children: [],
+      },
+    ],
+  },
 ];
