@@ -11,16 +11,18 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: "#0a0a12",
   scene: [Preloader, MainMenu, Game],
   physics: {
-  default: "arcade",
-  arcade: {
-    gravity: { x: 0, y: 800 },
-    debug: false
-  }
-},
+    default: "arcade",
+    arcade: {
+      gravity: { x: 0, y: 800 },
+      debug: false,
+    },
+  },
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
-  }
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    width: 1024,
+    height: 576,
+  },
 };
 
 new Phaser.Game(config);
