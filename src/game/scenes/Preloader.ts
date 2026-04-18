@@ -1,4 +1,4 @@
-// src/game/scenes/Preloader.ts
+
 import * as Phaser from "phaser";
 
 export class Preloader extends Phaser.Scene {
@@ -17,7 +17,7 @@ export class Preloader extends Phaser.Scene {
     gfx.generateTexture("pixel", 8, 8);
 
     gfx.clear();
-    gfx.fillStyle(0x00aaff, 1);           
+    gfx.fillStyle(0x00aaff, 1);
     gfx.fillRect(0, 20, 42, 38);
     gfx.fillStyle(0xff8800, 1);
     gfx.fillRect(12, 8, 18, 18);
