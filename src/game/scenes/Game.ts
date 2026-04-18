@@ -12,8 +12,10 @@ export class Game extends Phaser.Scene {
   private overheatBar!: Phaser.GameObjects.Graphics;
   private isGameOver: boolean = false;
   private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
-  private conveyorSpeed: number = 1800;
-  private spawnInterval: number = 1600;
+
+  private conveyorSpeed: number = 1700;
+  private spawnInterval: number = 1450;
+  private baseOverheatRate: number = 0.75;
 
   constructor() {
     super({ key: "Game" });
@@ -23,8 +25,8 @@ export class Game extends Phaser.Scene {
     this.isGameOver = false;
     this.production = 0;
     this.overheatLevel = 0;
-    this.conveyorSpeed = 1800;
-    this.spawnInterval = 1600;
+    this.conveyorSpeed = 1700;
+    this.spawnInterval = 1450;
 
     this.add.image(512, 288, "background");
     this.conveyor = this.add.tileSprite(512, 460, 1024, 160, "conveyor");
@@ -46,9 +48,9 @@ export class Game extends Phaser.Scene {
 
   private createParticles() {
     this.repairEmitter = this.add.particles(0, 0, "pixel", {
-      speed: { min: 150, max: 380 },
-      scale: { start: 1.3, end: 0 },
-      lifespan: 700,
+      speed: { min: 180, max: 420 },
+      scale: { start: 1.4, end: 0 },
+      lifespan: 650,
       quantity: 1,
       blendMode: Phaser.BlendModes.ADD,
       tint: 0x00ffcc
@@ -72,7 +74,7 @@ export class Game extends Phaser.Scene {
 
   private spawnInitialMachines() {
     this.spawnMachine();
-    this.time.delayedCall(700, () => this.spawnMachine());
+    this.time.delayedCall(600, () => this.spawnMachine());
   }
 
   private animateConveyor() {
@@ -96,7 +98,7 @@ export class Game extends Phaser.Scene {
 
   private startOverheatTimer() {
     this.time.addEvent({
-      delay: 300,
+      delay: 280,
       callback: this.updateOverheat,
       callbackScope: this,
       loop: true
@@ -107,7 +109,7 @@ export class Game extends Phaser.Scene {
     if (this.isGameOver) return;
 
     const x = 1100;
-    const y = 355 + Phaser.Math.Between(-55, 55);
+    const y = 355 + Phaser.Math.Between(-65, 65);
 
     const machine = new Machine(this, {
       type: Phaser.Math.RND.pick(["gear", "piston", "belt"]),
@@ -121,13 +123,13 @@ export class Game extends Phaser.Scene {
     this.tweens.add({
       targets: machine,
       x: -180,
-      duration: 6800,
+      duration: 6500,
       ease: "Linear",
       onComplete: () => {
         const index = this.machines.indexOf(machine);
         if (index > -1) this.machines.splice(index, 1);
         machine.destroy();
-        this.increaseOverheat(8);
+        this.increaseOverheat(12);        // Plus de pénalité
       }
     });
   }
@@ -146,20 +148,20 @@ export class Game extends Phaser.Scene {
   }
 
   private repairSuccess(x: number, y: number) {
-    this.production += 320;
+    this.production += 340;
     this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
 
-    this.overheatLevel = Math.max(0, this.overheatLevel - 14);
+    this.overheatLevel = Math.max(0, this.overheatLevel - 18);   // Réparation plus efficace
     this.drawOverheatBar();
 
-    this.cameras.main.flash(90, 120, 255, 140);
-    this.repairEmitter.explode(28, x, y);
+    this.cameras.main.flash(80, 140, 255, 160);
+    this.repairEmitter.explode(32, x, y);
   }
 
   private updateOverheat() {
     if (this.isGameOver) return;
 
-    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + 0.6, 0, 100);
+    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + this.baseOverheatRate, 0, 100);
     this.drawOverheatBar();
 
     if (this.overheatLevel >= 100) {
@@ -181,32 +183,31 @@ export class Game extends Phaser.Scene {
   }
 
   private increaseDifficulty() {
-    if (this.production > 3500 && this.conveyorSpeed > 1100) {
-      this.conveyorSpeed -= 70;
-      this.spawnInterval = Math.max(800, this.spawnInterval - 60);
+    if (this.production > 2000) {
+      this.conveyorSpeed = Phaser.Math.Clamp(this.conveyorSpeed - 4, 900, 1700);
+      this.spawnInterval = Phaser.Math.Clamp(this.spawnInterval - 8, 700, 1450);
+      this.baseOverheatRate = Phaser.Math.Clamp(this.baseOverheatRate + 0.015, 0.75, 1.8);
     }
   }
 
   private triggerGameOver() {
     this.isGameOver = true;
-    this.cameras.main.shake(1400, 0.018);
+    this.cameras.main.shake(1600, 0.022);
 
-    this.add.text(512, 240, "FACTORY OVERHEATED", {
+    this.add.text(512, 230, "FACTORY OVERHEATED", {
       fontFamily: "monospace",
-      fontSize: "52px",
+      fontSize: "56px",
       color: "#ff0000",
       align: "center"
     }).setOrigin(0.5);
 
-    this.add.text(512, 310, `FINAL PRODUCTION: ${this.production}`, {
+    this.add.text(512, 310, `FINAL PRODUCTION : ${this.production}`, {
       fontFamily: "monospace",
-      fontSize: "28px",
+      fontSize: "32px",
       color: "#ffffff"
     }).setOrigin(0.5);
 
-    this.time.delayedCall(3000, () => {
-      this.scene.restart();
-    });
+    this.time.delayedCall(2800, () => this.scene.restart());
   }
 
   update() {
