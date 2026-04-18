@@ -7,15 +7,18 @@ export class Game extends Phaser.Scene {
   private machines: Machine[] = [];
   private production: number = 0;
   private productionText!: Phaser.GameObjects.Text;
+  private combo: number = 0;
+  private comboText!: Phaser.GameObjects.Text;
+  private lastRepairTime: number = 0;
+
   private conveyor!: Phaser.GameObjects.TileSprite;
   private overheatLevel: number = 0;
   private overheatBar!: Phaser.GameObjects.Graphics;
   private isGameOver: boolean = false;
-  private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
-  private conveyorSpeed: number = 1700;
-  private spawnInterval: number = 1450;
-  private baseOverheatRate: number = 0.75;
+  private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private conveyorSpeed: number = 1750;
+  private spawnInterval: number = 1400;
 
   constructor() {
     super({ key: "Game" });
@@ -24,9 +27,11 @@ export class Game extends Phaser.Scene {
   create() {
     this.isGameOver = false;
     this.production = 0;
+    this.combo = 0;
     this.overheatLevel = 0;
-    this.conveyorSpeed = 1700;
-    this.spawnInterval = 1450;
+    this.conveyorSpeed = 1750;
+    this.spawnInterval = 1400;
+    this.lastRepairTime = 0;
 
     this.add.image(512, 288, "background");
     this.conveyor = this.add.tileSprite(512, 460, 1024, 160, "conveyor");
@@ -48,9 +53,9 @@ export class Game extends Phaser.Scene {
 
   private createParticles() {
     this.repairEmitter = this.add.particles(0, 0, "pixel", {
-      speed: { min: 180, max: 420 },
+      speed: { min: 200, max: 450 },
       scale: { start: 1.4, end: 0 },
-      lifespan: 650,
+      lifespan: 680,
       quantity: 1,
       blendMode: Phaser.BlendModes.ADD,
       tint: 0x00ffcc
@@ -68,13 +73,19 @@ export class Game extends Phaser.Scene {
       color: "#00ffcc"
     }).setShadow(2, 2, "#000", 5);
 
+    this.comboText = this.add.text(40, 65, "COMBO: 0x", {
+      fontFamily: "monospace",
+      fontSize: "22px",
+      color: "#ffff00"
+    }).setShadow(2, 2, "#000", 4);
+
     this.add.rectangle(512, 45, 420, 22, 0x330000).setStrokeStyle(3, 0xff4444);
     this.overheatBar = this.add.graphics();
   }
 
   private spawnInitialMachines() {
     this.spawnMachine();
-    this.time.delayedCall(600, () => this.spawnMachine());
+    this.time.delayedCall(500, () => this.spawnMachine());
   }
 
   private animateConveyor() {
@@ -98,7 +109,7 @@ export class Game extends Phaser.Scene {
 
   private startOverheatTimer() {
     this.time.addEvent({
-      delay: 280,
+      delay: 260,
       callback: this.updateOverheat,
       callbackScope: this,
       loop: true
@@ -109,7 +120,7 @@ export class Game extends Phaser.Scene {
     if (this.isGameOver) return;
 
     const x = 1100;
-    const y = 355 + Phaser.Math.Between(-65, 65);
+    const y = 355 + Phaser.Math.Between(-70, 70);
 
     const machine = new Machine(this, {
       type: Phaser.Math.RND.pick(["gear", "piston", "belt"]),
@@ -123,13 +134,13 @@ export class Game extends Phaser.Scene {
     this.tweens.add({
       targets: machine,
       x: -180,
-      duration: 6500,
+      duration: 6400,
       ease: "Linear",
       onComplete: () => {
         const index = this.machines.indexOf(machine);
         if (index > -1) this.machines.splice(index, 1);
         machine.destroy();
-        this.increaseOverheat(12);        // Plus de pénalité
+        this.increaseOverheat(14);
       }
     });
   }
@@ -148,20 +159,37 @@ export class Game extends Phaser.Scene {
   }
 
   private repairSuccess(x: number, y: number) {
-    this.production += 340;
-    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
+    const now = Date.now();
+    const isCombo = now - this.lastRepairTime < 1800;
 
-    this.overheatLevel = Math.max(0, this.overheatLevel - 18);   // Réparation plus efficace
+    if (isCombo) {
+      this.combo++;
+    } else {
+      this.combo = 1;
+    }
+    this.lastRepairTime = now;
+
+    const comboBonus = this.combo * 40;
+    this.production += 300 + comboBonus;
+
+    this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
+    this.comboText.setText(`COMBO: ${this.combo}x`);
+
+    this.overheatLevel = Math.max(0, this.overheatLevel - 19);
     this.drawOverheatBar();
 
-    this.cameras.main.flash(80, 140, 255, 160);
-    this.repairEmitter.explode(32, x, y);
+    this.cameras.main.flash(70, 160, 255, 180);
+    this.repairEmitter.explode(35, x, y);
+
+    if (this.combo >= 3) {
+      this.cameras.main.shake(120, 0.006 * this.combo);
+    }
   }
 
   private updateOverheat() {
     if (this.isGameOver) return;
 
-    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + this.baseOverheatRate, 0, 100);
+    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + 0.85, 0, 100);
     this.drawOverheatBar();
 
     if (this.overheatLevel >= 100) {
@@ -183,31 +211,36 @@ export class Game extends Phaser.Scene {
   }
 
   private increaseDifficulty() {
-    if (this.production > 2000) {
-      this.conveyorSpeed = Phaser.Math.Clamp(this.conveyorSpeed - 4, 900, 1700);
-      this.spawnInterval = Phaser.Math.Clamp(this.spawnInterval - 8, 700, 1450);
-      this.baseOverheatRate = Phaser.Math.Clamp(this.baseOverheatRate + 0.015, 0.75, 1.8);
+    if (this.production > 2500) {
+      this.conveyorSpeed = Phaser.Math.Clamp(this.conveyorSpeed - 6, 850, 1750);
+      this.spawnInterval = Phaser.Math.Clamp(this.spawnInterval - 12, 650, 1400);
     }
   }
 
   private triggerGameOver() {
     this.isGameOver = true;
-    this.cameras.main.shake(1600, 0.022);
+    this.cameras.main.shake(1600, 0.025);
 
-    this.add.text(512, 230, "FACTORY OVERHEATED", {
+    this.add.text(512, 220, "FACTORY OVERHEATED", {
       fontFamily: "monospace",
-      fontSize: "56px",
+      fontSize: "58px",
       color: "#ff0000",
       align: "center"
     }).setOrigin(0.5);
 
-    this.add.text(512, 310, `FINAL PRODUCTION : ${this.production}`, {
+    this.add.text(512, 300, `FINAL SCORE : ${this.production}`, {
       fontFamily: "monospace",
-      fontSize: "32px",
+      fontSize: "34px",
       color: "#ffffff"
     }).setOrigin(0.5);
 
-    this.time.delayedCall(2800, () => this.scene.restart());
+    this.add.text(512, 350, `BEST COMBO : ${this.combo}x`, {
+      fontFamily: "monospace",
+      fontSize: "26px",
+      color: "#ffff00"
+    }).setOrigin(0.5);
+
+    this.time.delayedCall(3200, () => this.scene.restart());
   }
 
   update() {
