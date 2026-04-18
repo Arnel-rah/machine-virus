@@ -140,7 +140,7 @@ export class Game extends Phaser.Scene {
 
     this.cameras.main.flash(90, 120, 255, 140);
 
-    // Particules d'étincelles
+
     this.repairEmitter.explode(25, x, y);
   }
 
