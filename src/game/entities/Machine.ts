@@ -13,6 +13,7 @@ export class Machine extends Phaser.GameObjects.Container {
 
   private base!: Phaser.GameObjects.Rectangle;
   private indicator!: Phaser.GameObjects.Graphics;
+  private gear!: Phaser.GameObjects.Sprite;
 
   constructor(scene: Phaser.Scene, config: MachineConfig) {
     super(scene, config.x, config.y);
@@ -23,12 +24,19 @@ export class Machine extends Phaser.GameObjects.Container {
   }
 
   private createVisuals() {
-    this.base = this.scene.add.rectangle(0, 0, 90, 90, 0x444466);
-    this.base.setStrokeStyle(4, 0x8888aa);
+    this.base = this.scene.add.rectangle(0, 0, 96, 96, 0x444466);
+    this.base.setStrokeStyle(5, 0x8888aa);
     this.add(this.base);
 
     this.indicator = this.scene.add.graphics();
     this.add(this.indicator);
+
+    if (this.machineType === "gear") {
+      this.gear = this.scene.add.sprite(0, 0, "pixel");
+      this.gear.setScale(2.2);
+      this.gear.setTint(0xaaaaaa);
+      this.add(this.gear);
+    }
 
     if (this.isBroken) this.showBrokenState();
   }
@@ -36,12 +44,12 @@ export class Machine extends Phaser.GameObjects.Container {
   private showBrokenState() {
     this.indicator.clear();
     this.indicator.fillStyle(0xff3366, 0.9);
-    this.indicator.fillCircle(0, -35, 12);
+    this.indicator.fillCircle(0, -42, 14);
 
     this.scene.tweens.add({
       targets: this.indicator,
-      alpha: 0.3,
-      duration: 600,
+      alpha: 0.4,
+      duration: 500,
       yoyo: true,
       repeat: -1,
     });
@@ -55,13 +63,22 @@ export class Machine extends Phaser.GameObjects.Container {
     this.scene.tweens.add({
       targets: this.base,
       fillColor: 0x44aa77,
-      duration: 400,
+      duration: 450,
       ease: "Power2",
     });
 
     this.indicator.clear();
     this.indicator.fillStyle(0x00ff99, 1);
-    this.indicator.fillCircle(0, -35, 10);
+    this.indicator.fillCircle(0, -42, 11);
+
+    if (this.gear) {
+      this.scene.tweens.add({
+        targets: this.gear,
+        angle: 360,
+        duration: 800,
+        repeat: 2,
+      });
+    }
   }
 
   public isRepairable(): boolean {
