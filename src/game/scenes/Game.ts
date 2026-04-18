@@ -46,9 +46,9 @@ export class Game extends Phaser.Scene {
 
   private createParticles() {
     this.repairEmitter = this.add.particles(0, 0, "pixel", {
-      speed: { min: 120, max: 350 },
-      scale: { start: 1.2, end: 0 },
-      lifespan: 650,
+      speed: { min: 150, max: 380 },
+      scale: { start: 1.3, end: 0 },
+      lifespan: 700,
       quantity: 1,
       blendMode: Phaser.BlendModes.ADD,
       tint: 0x00ffcc
@@ -181,24 +181,30 @@ export class Game extends Phaser.Scene {
   }
 
   private increaseDifficulty() {
-    if (this.production > 3000 && this.conveyorSpeed > 1200) {
-      this.conveyorSpeed -= 80;
-      this.spawnInterval = Math.max(900, this.spawnInterval - 50);
+    if (this.production > 3500 && this.conveyorSpeed > 1100) {
+      this.conveyorSpeed -= 70;
+      this.spawnInterval = Math.max(800, this.spawnInterval - 60);
     }
   }
 
   private triggerGameOver() {
     this.isGameOver = true;
-    this.cameras.main.shake(1200, 0.015);
+    this.cameras.main.shake(1400, 0.018);
 
-    this.add.text(512, 260, "OVERHEAT CRITICAL\nFACTORY EXPLOSION", {
+    this.add.text(512, 240, "FACTORY OVERHEATED", {
       fontFamily: "monospace",
-      fontSize: "48px",
+      fontSize: "52px",
       color: "#ff0000",
       align: "center"
     }).setOrigin(0.5);
 
-    this.time.delayedCall(2500, () => {
+    this.add.text(512, 310, `FINAL PRODUCTION: ${this.production}`, {
+      fontFamily: "monospace",
+      fontSize: "28px",
+      color: "#ffffff"
+    }).setOrigin(0.5);
+
+    this.time.delayedCall(3000, () => {
       this.scene.restart();
     });
   }
