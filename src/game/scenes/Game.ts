@@ -12,6 +12,8 @@ export class Game extends Phaser.Scene {
   private overheatBar!: Phaser.GameObjects.Graphics;
   private isGameOver: boolean = false;
   private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private conveyorSpeed: number = 1800;
+  private spawnInterval: number = 1600;
 
   constructor() {
     super({ key: "Game" });
@@ -21,6 +23,8 @@ export class Game extends Phaser.Scene {
     this.isGameOver = false;
     this.production = 0;
     this.overheatLevel = 0;
+    this.conveyorSpeed = 1800;
+    this.spawnInterval = 1600;
 
     this.add.image(512, 288, "background");
     this.conveyor = this.add.tileSprite(512, 460, 1024, 160, "conveyor");
@@ -31,27 +35,9 @@ export class Game extends Phaser.Scene {
     this.setupUI();
     this.spawnInitialMachines();
 
-    this.tweens.add({
-      targets: this.conveyor,
-      tilePositionX: -400,
-      duration: 1800,
-      repeat: -1,
-      ease: "Linear"
-    });
-
-    this.time.addEvent({
-      delay: 1600,
-      callback: this.spawnMachine,
-      callbackScope: this,
-      loop: true
-    });
-
-    this.time.addEvent({
-      delay: 300,
-      callback: this.updateOverheat,
-      callbackScope: this,
-      loop: true
-    });
+    this.animateConveyor();
+    this.startSpawning();
+    this.startOverheatTimer();
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.checkMachineRepair(pointer);
@@ -60,9 +46,9 @@ export class Game extends Phaser.Scene {
 
   private createParticles() {
     this.repairEmitter = this.add.particles(0, 0, "pixel", {
-      speed: { min: 100, max: 300 },
-      scale: { start: 1, end: 0 },
-      lifespan: 600,
+      speed: { min: 120, max: 350 },
+      scale: { start: 1.2, end: 0 },
+      lifespan: 650,
       quantity: 1,
       blendMode: Phaser.BlendModes.ADD,
       tint: 0x00ffcc
@@ -87,6 +73,34 @@ export class Game extends Phaser.Scene {
   private spawnInitialMachines() {
     this.spawnMachine();
     this.time.delayedCall(700, () => this.spawnMachine());
+  }
+
+  private animateConveyor() {
+    this.tweens.add({
+      targets: this.conveyor,
+      tilePositionX: -400,
+      duration: this.conveyorSpeed,
+      repeat: -1,
+      ease: "Linear"
+    });
+  }
+
+  private startSpawning() {
+    this.time.addEvent({
+      delay: this.spawnInterval,
+      callback: this.spawnMachine,
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  private startOverheatTimer() {
+    this.time.addEvent({
+      delay: 300,
+      callback: this.updateOverheat,
+      callbackScope: this,
+      loop: true
+    });
   }
 
   private spawnMachine() {
@@ -139,9 +153,7 @@ export class Game extends Phaser.Scene {
     this.drawOverheatBar();
 
     this.cameras.main.flash(90, 120, 255, 140);
-
-
-    this.repairEmitter.explode(25, x, y);
+    this.repairEmitter.explode(28, x, y);
   }
 
   private updateOverheat() {
@@ -153,6 +165,8 @@ export class Game extends Phaser.Scene {
     if (this.overheatLevel >= 100) {
       this.triggerGameOver();
     }
+
+    this.increaseDifficulty();
   }
 
   private drawOverheatBar() {
@@ -164,6 +178,13 @@ export class Game extends Phaser.Scene {
   private increaseOverheat(amount: number) {
     this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + amount, 0, 100);
     this.drawOverheatBar();
+  }
+
+  private increaseDifficulty() {
+    if (this.production > 3000 && this.conveyorSpeed > 1200) {
+      this.conveyorSpeed -= 80;
+      this.spawnInterval = Math.max(900, this.spawnInterval - 50);
+    }
   }
 
   private triggerGameOver() {
