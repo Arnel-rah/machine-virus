@@ -2,6 +2,19 @@ import * as Phaser from "phaser";
 import { Player } from "../entities/Player";
 import { Machine } from "../entities/Machine";
 
+const TYPING_PHRASES = [
+  "FIX CORE",
+  "REBOOT NODE",
+  "BYPASS FIREWALL",
+  "RESTORE POWER",
+  "CLEAR CACHE",
+  "DEBUG MODE",
+  "INIT SYSTEM",
+  "PATCH VULN",
+  "OVERCLOCK OK",
+  "SYNC DATA"
+];
+
 export class Game extends Phaser.Scene {
   private player!: Player;
   private machines: Machine[] = [];
@@ -9,7 +22,6 @@ export class Game extends Phaser.Scene {
   private productionText!: Phaser.GameObjects.Text;
   private combo: number = 0;
   private comboText!: Phaser.GameObjects.Text;
-  private lastRepairTime: number = 0;
 
   private conveyor!: Phaser.GameObjects.TileSprite;
   private overheatLevel: number = 0;
@@ -18,9 +30,15 @@ export class Game extends Phaser.Scene {
 
   private repairEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
+  private currentTypingTarget: string = "";
+  private currentTyped: string = "";
+  private typingText!: Phaser.GameObjects.Text;
+  private typingPrompt!: Phaser.GameObjects.Text;
+
+  private lastRepairTime: number = 0;
   private currentLevel: number = 1;
-  private conveyorSpeed: number = 1750;
-  private spawnInterval: number = 1350;
+  private conveyorSpeed: number = 1720;
+  private spawnInterval: number = 1300;
 
   constructor() {
     super({ key: "Game" });
@@ -31,6 +49,8 @@ export class Game extends Phaser.Scene {
     this.production = 0;
     this.combo = 0;
     this.overheatLevel = 0;
+    this.currentTyped = "";
+    this.currentTypingTarget = "";
     this.lastRepairTime = 0;
 
     this.applyLevelSettings();
@@ -48,29 +68,30 @@ export class Game extends Phaser.Scene {
     this.startSpawning();
     this.startOverheatTimer();
 
-    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
-      this.checkMachineRepair(pointer);
+    // Correction importante : écoute clavier
+    this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+      this.handleKeyInput(event);
     });
   }
 
   private applyLevelSettings() {
     if (this.currentLevel === 1) {
-      this.conveyorSpeed = 1750;
-      this.spawnInterval = 1350;
+      this.conveyorSpeed = 1720;
+      this.spawnInterval = 1300;
     } else if (this.currentLevel === 2) {
-      this.conveyorSpeed = 1350;
-      this.spawnInterval = 1050;
+      this.conveyorSpeed = 1250;
+      this.spawnInterval = 950;
     } else if (this.currentLevel === 3) {
-      this.conveyorSpeed = 1050;
-      this.spawnInterval = 780;
+      this.conveyorSpeed = 950;
+      this.spawnInterval = 680;
     }
   }
 
   private createParticles() {
     this.repairEmitter = this.add.particles(0, 0, "pixel", {
-      speed: { min: 250, max: 520 },
-      scale: { start: 1.6, end: 0 },
-      lifespan: 750,
+      speed: { min: 280, max: 580 },
+      scale: { start: 1.7, end: 0 },
+      lifespan: 780,
       quantity: 1,
       blendMode: Phaser.BlendModes.ADD,
       tint: 0x00ffcc
@@ -102,6 +123,18 @@ export class Game extends Phaser.Scene {
 
     this.add.rectangle(512, 48, 420, 26, 0x220000).setStrokeStyle(5, 0xff5555);
     this.overheatBar = this.add.graphics();
+
+    this.typingPrompt = this.add.text(512, 180, "", {
+      fontFamily: "monospace",
+      fontSize: "26px",
+      color: "#00ffaa"
+    }).setOrigin(0.5);
+
+    this.typingText = this.add.text(512, 220, "", {
+      fontFamily: "monospace",
+      fontSize: "32px",
+      color: "#ffffff"
+    }).setOrigin(0.5);
   }
 
   private spawnInitialMachines() {
@@ -156,13 +189,13 @@ export class Game extends Phaser.Scene {
     this.tweens.add({
       targets: machine,
       x: -180,
-      duration: 5950,
+      duration: 6100,
       ease: "Linear",
       onComplete: () => {
         const index = this.machines.indexOf(machine);
         if (index > -1) this.machines.splice(index, 1);
         machine.destroy();
-        this.increaseOverheat(16);
+        this.increaseOverheat(15);
       }
     });
   }
@@ -172,46 +205,92 @@ export class Game extends Phaser.Scene {
       const machine = this.machines[i];
       const bounds = machine.getBounds();
 
-      if (bounds.contains(pointer.x, pointer.y) && machine.isRepairable()) {
-        machine.repair();
-        this.repairSuccess(pointer.x, pointer.y);
+      if (bounds.contains(pointer.x, pointer.y) && machine.isRepairable() && !this.currentTypingTarget) {
+        this.startTypingMode(machine);
         break;
       }
     }
   }
 
-  private repairSuccess(x: number, y: number) {
+  private startTypingMode(machine: Machine) {
+    this.currentTypingTarget = Phaser.Math.RND.pick(TYPING_PHRASES);
+    this.currentTyped = "";
+
+    this.typingPrompt.setText("TYPE TO REPAIR:");
+    this.typingText.setText(this.currentTypingTarget);
+    this.typingText.setColor("#ffffff");
+
+    (machine as any).pendingRepair = true;
+  }
+
+  private handleKeyInput(event: KeyboardEvent) {
+    if (!this.currentTypingTarget || this.isGameOver) return;
+
+    const key = event.key.toUpperCase();
+
+    if (key === "BACKSPACE") {
+      this.currentTyped = this.currentTyped.slice(0, -1);
+    }
+    else if (key.length === 1 && /[A-Z0-9 ]/.test(key)) {
+      this.currentTyped += key;
+    }
+
+    this.typingText.setText(this.currentTyped);
+
+    if (this.currentTyped === this.currentTypingTarget) {
+      this.completeRepair();
+    }
+    else if (!this.currentTypingTarget.startsWith(this.currentTyped)) {
+      this.typingText.setColor("#ff6666");
+      this.time.delayedCall(180, () => {
+        if (this.currentTypingTarget) this.typingText.setColor("#ffffff");
+      });
+    }
+  }
+
+  private completeRepair() {
+    const machine = this.machines.find(m => (m as any).pendingRepair);
+    if (machine) {
+      machine.repair();
+      (machine as any).pendingRepair = false;
+    }
+
+    this.repairSuccess();
+
+    this.currentTypingTarget = "";
+    this.currentTyped = "";
+    this.typingPrompt.setText("");
+    this.typingText.setText("");
+  }
+
+  private repairSuccess() {
     const now = Date.now();
-    const isCombo = now - this.lastRepairTime < 1450;
+    const isCombo = now - this.lastRepairTime < 1600;
 
     if (isCombo) {
-      this.combo = Math.min(this.combo + 1, 18);
+      this.combo = Math.min(this.combo + 1, 20);
     } else {
       this.combo = 1;
     }
     this.lastRepairTime = now;
 
-    const comboBonus = Math.floor(this.combo * 55);
-    this.production += 335 + comboBonus;
+    const comboBonus = Math.floor(this.combo * 60);
+    this.production += 340 + comboBonus;
 
     this.productionText.setText(`PRODUCTION: ${this.production.toString().padStart(5, '0')}`);
     this.comboText.setText(`COMBO: ${this.combo}x`);
 
-    this.overheatLevel = Math.max(0, this.overheatLevel - 24);
+    this.overheatLevel = Math.max(0, this.overheatLevel - 26);
     this.drawOverheatBar();
 
-    this.cameras.main.flash(55, 210, 255, 230);
-    this.repairEmitter.explode(42 + this.combo * 2, x, y);
-
-    if (this.combo >= 8) {
-      this.cameras.main.shake(190, 0.011 * Math.min(this.combo, 12));
-    }
+    this.cameras.main.flash(70, 230, 255, 250);
+    this.repairEmitter.explode(45 + this.combo * 2, 512, 300);
   }
 
   private updateOverheat() {
     if (this.isGameOver) return;
 
-    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + 0.98, 0, 100);
+    this.overheatLevel = Phaser.Math.Clamp(this.overheatLevel + 1.0, 0, 100);
     this.drawOverheatBar();
 
     if (this.overheatLevel >= 100) {
@@ -233,9 +312,9 @@ export class Game extends Phaser.Scene {
   }
 
   private increaseDifficulty() {
-    if (this.production > 3500) {
-      this.conveyorSpeed = Phaser.Math.Clamp(this.conveyorSpeed - 12, 720, 1700);
-      this.spawnInterval = Phaser.Math.Clamp(this.spawnInterval - 25, 520, 1280);
+    if (this.production > 4000) {
+      this.conveyorSpeed = Phaser.Math.Clamp(this.conveyorSpeed - 14, 700, 1700);
+      this.spawnInterval = Phaser.Math.Clamp(this.spawnInterval - 28, 500, 1280);
     }
   }
 
@@ -243,36 +322,19 @@ export class Game extends Phaser.Scene {
     this.isGameOver = true;
     this.cameras.main.shake(2200, 0.035);
 
-    const gameOverContainer = this.add.container(512, 288);
-
-    const title = this.add.text(0, -80, "CRITICAL OVERHEAT", {
+    this.add.text(512, 200, "CRITICAL OVERHEAT", {
       fontFamily: "monospace",
-      fontSize: "68px",
-      color: "#ff0000",
-      align: "center"
+      fontSize: "70px",
+      color: "#ff0000"
     }).setOrigin(0.5);
 
-    const score = this.add.text(0, 20, `FINAL PRODUCTION : ${this.production}`, {
+    this.add.text(512, 290, `FINAL PRODUCTION : ${this.production}`, {
       fontFamily: "monospace",
-      fontSize: "38px",
+      fontSize: "40px",
       color: "#ffffff"
     }).setOrigin(0.5);
 
-    const combo = this.add.text(0, 70, `MAX COMBO : ${this.combo}x`, {
-      fontFamily: "monospace",
-      fontSize: "32px",
-      color: "#ffff00"
-    }).setOrigin(0.5);
-
-    gameOverContainer.add([title, score, combo]);
-
-    this.time.delayedCall(3800, () => {
-      this.scene.start("GameOver", {
-        score: this.production,
-        combo: this.combo,
-        level: this.currentLevel
-      });
-    });
+    this.time.delayedCall(3500, () => this.scene.restart());
   }
 
   update() {
