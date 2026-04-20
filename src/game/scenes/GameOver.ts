@@ -1,35 +1,48 @@
-import { Scene } from 'phaser';
+import * as Phaser from "phaser";
 
-export class GameOver extends Scene
-{
-    camera: Phaser.Cameras.Scene2D.Camera;
-    background: Phaser.GameObjects.Image;
-    gameover_text : Phaser.GameObjects.Text;
+export class GameOver extends Phaser.Scene {
+  constructor() {
+    super({ key: "GameOver" });
+  }
 
-    constructor ()
-    {
-        super('GameOver');
-    }
+  create(data: { score: number; combo: number; level: number }) {
+    this.cameras.main.setBackgroundColor("#0a0a12");
 
-    create ()
-    {
-        this.camera = this.cameras.main
-        this.camera.setBackgroundColor(0xff0000);
+    this.add.text(512, 180, "MISSION FAILED", {
+      fontFamily: "monospace",
+      fontSize: "72px",
+      color: "#ff0000"
+    }).setOrigin(0.5);
 
-        this.background = this.add.image(512, 384, 'background');
-        this.background.setAlpha(0.5);
+    this.add.text(512, 280, `LEVEL ${data.level} - FINAL PRODUCTION`, {
+      fontFamily: "monospace",
+      fontSize: "28px",
+      color: "#aaaaaa"
+    }).setOrigin(0.5);
 
-        this.gameover_text = this.add.text(512, 384, 'Game Over', {
-            fontFamily: 'Arial Black', fontSize: 64, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        });
-        this.gameover_text.setOrigin(0.5);
+    this.add.text(512, 340, data.score.toString(), {
+      fontFamily: "monospace",
+      fontSize: "68px",
+      color: "#ffffff"
+    }).setOrigin(0.5);
 
-        this.input.once('pointerdown', () => {
+    this.add.text(512, 410, `MAX COMBO : ${data.combo}x`, {
+      fontFamily: "monospace",
+      fontSize: "32px",
+      color: "#ffff00"
+    }).setOrigin(0.5);
 
-            this.scene.start('MainMenu');
+    const restartBtn = this.add.text(512, 520, "RESTART SHIFT", {
+      fontFamily: "monospace",
+      fontSize: "34px",
+      color: "#00ffcc",
+      padding: { x: 40, y: 15 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-        });
-    }
+    restartBtn.on("pointerover", () => restartBtn.setColor("#ffffff"));
+    restartBtn.on("pointerout", () => restartBtn.setColor("#00ffcc"));
+    restartBtn.on("pointerdown", () => {
+      this.scene.start("Game");
+    });
+  }
 }
