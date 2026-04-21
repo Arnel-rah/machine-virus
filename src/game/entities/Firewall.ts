@@ -1,48 +1,23 @@
 import * as Phaser from "phaser";
 
-export class Firewall extends Phaser.GameObjects.Arc {
-    private orbitSpeed: number;
-    private distance: number;
-    private orbitAngle: number = 0;
-    private center: { x: number; y: number };
-    private speedMultiplier: number = 1;
+export class Firewall {
+  private graphics: Phaser.GameObjects.Graphics;
+  private strength: number = 100;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, distance: number, speed: number) {
-        super(scene, x, y, 8, 0, 360, false, 0x00ffff);
-        this.center = { x, y };
-        this.distance = distance;
-        this.orbitSpeed = speed;
+  constructor(scene: Phaser.Scene) {
+    this.graphics = scene.add.graphics();
+    this.draw();
+  }
 
-        scene.add.existing(this);
-        scene.physics.add.existing(this);
+  private draw() {
+    this.graphics.clear();
+    this.graphics.lineStyle(3, 0x00ff00, this.strength / 100);
+    this.graphics.strokeRect(50, 50, 200, 20);
+    this.graphics.strokePath();
+  }
 
-        scene.tweens.add({
-            targets: this,
-            radius: 12,
-            alpha: 0.5,
-            duration: 300,
-            yoyo: true,
-            repeat: -1
-        });
-    }
-
-    public setSpeedMultiplier(multiplier: number) {
-        this.speedMultiplier = multiplier;
-    }
-
-    public setCenter(x: number, y: number) {
-        this.center.x = x;
-        this.center.y = y;
-    }
-
-    update(time: number, delta: number) {
-        this.orbitAngle += (this.orbitSpeed * this.speedMultiplier) * (delta / 1000);
-
-        this.x = this.center.x + Math.cos(this.orbitAngle) * this.distance;
-        this.y = this.center.y + Math.sin(this.orbitAngle) * this.distance;
-
-        if (this.body) {
-            (this.body as Phaser.Physics.Arcade.Body).reset(this.x, this.y);
-        }
-    }
+  public takeDamage(amount: number) {
+    this.strength = Math.max(0, this.strength - amount);
+    this.draw();
+  }
 }

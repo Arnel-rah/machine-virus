@@ -1,22 +1,51 @@
-import { Scene } from 'phaser';
+import * as Phaser from "phaser";
+import { Game } from "./Game";
 
-export class Boot extends Scene
-{
-    constructor ()
-    {
-        super('Boot');
+export class Boot extends Phaser.Scene {
+  constructor() {
+    super({ key: "Boot" });
+  }
+
+  preload() {
+    // Preload assets here if needed
+    // this.load.image('sky', 'assets/sky.png');
+  }
+
+  create() {
+    // Setup game configuration
+    this.setupAudio();
+
+    // Start the main game scene
+    this.scene.start("Game");
+  }
+
+  private setupAudio() {
+    // Audio initialization can happen here
+    // Web Audio API will be initialized in the Game scene
+  }
+}
+
+// Phaser game configuration
+export const gameConfig: Phaser.Types.Core.GameConfig = {
+  type: Phaser.AUTO,
+  width: 1024,
+  height: 768,
+  physics: {
+    default: "arcade",
+    arcade: {
+      debug: false,
+      gravity: { x: 0, y: 0 }
     }
+  },
+  scene: [Boot, Game],
+  render: {
+    antialias: false,
+    pixelArt: true
+  },
+  parent: "game-container"
+};
 
-    preload ()
-    {
-        //  The Boot Scene is typically used to load in any assets you require for your Preloader, such as a game logo or background.
-        //  The smaller the file size of the assets, the better, as the Boot Scene itself has no preloader.
-
-        this.load.image('background', 'assets/bg.png');
-    }
-
-    create ()
-    {
-        this.scene.start('Preloader');
-    }
+// Initialize the game
+export function initializeGame() {
+  return new Phaser.Game(gameConfig);
 }
