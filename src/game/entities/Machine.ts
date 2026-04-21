@@ -1,87 +1,57 @@
 import * as Phaser from "phaser";
 
-export interface MachineConfig {
-  type: "gear" | "piston" | "belt";
-  x: number;
-  y: number;
-  broken: boolean;
-}
+export class Machine {
+  private scene: Phaser.Scene;
+  private sprite!: Phaser.Physics.Arcade.Sprite;
+  private cpuUsage: number = 0;
+  private memoryUsage: number = 0;
+  private infected: boolean = false;
 
-export class Machine extends Phaser.GameObjects.Container {
-  public isBroken: boolean = true;
-  public machineType: string;
-
-  private base!: Phaser.GameObjects.Rectangle;
-  private indicator!: Phaser.GameObjects.Graphics;
-  private gear!: Phaser.GameObjects.Sprite;
-
-  constructor(scene: Phaser.Scene, config: MachineConfig) {
-    super(scene, config.x, config.y);
-    this.machineType = config.type;
-    this.isBroken = config.broken;
-    this.createVisuals();
-    scene.add.existing(this);
+  constructor(scene: Phaser.Scene, x: number, y: number) {
+    this.scene = scene;
+    this.createMachine(x, y);
   }
 
-  private createVisuals() {
-    this.base = this.scene.add.rectangle(0, 0, 96, 96, 0x444466);
-    this.base.setStrokeStyle(5, 0x8888aa);
-    this.add(this.base);
+  private createMachine(x: number, y: number) {
+    const graphics = this.scene.make.graphics({ x: 0, y: 0});
+    graphics.fillStyle(0x00d4ff, 1);
+    graphics.fillRect(8, 8, 32, 32);
+    graphics.generateTexture("machine", 48, 48);
+    graphics.destroy();
 
-    this.indicator = this.scene.add.graphics();
-    this.add(this.indicator);
-
-    if (this.machineType === "gear") {
-      this.gear = this.scene.add.sprite(0, 0, "pixel");
-      this.gear.setScale(2.2);
-      this.gear.setTint(0xaaaaaa);
-      this.add(this.gear);
-    }
-
-    if (this.isBroken) this.showBrokenState();
+    this.sprite = this.scene.physics.add.sprite(x, y, "machine");
+    this.sprite.setImmovable(true);
   }
 
-  private showBrokenState() {
-    this.indicator.clear();
-    this.indicator.fillStyle(0xff3366, 0.9);
-    this.indicator.fillCircle(0, -42, 14);
-
-    this.scene.tweens.add({
-      targets: this.indicator,
-      alpha: 0.4,
-      duration: 500,
-      yoyo: true,
-      repeat: -1,
-    });
+  public getSprite(): Phaser.Physics.Arcade.Sprite {
+    return this.sprite;
   }
 
-  public repair(): void {
-    if (!this.isBroken) return;
-
-    this.isBroken = false;
-
-    this.scene.tweens.add({
-      targets: this.base,
-      fillColor: 0x44aa77,
-      duration: 450,
-      ease: "Power2",
-    });
-
-    this.indicator.clear();
-    this.indicator.fillStyle(0x00ff99, 1);
-    this.indicator.fillCircle(0, -42, 11);
-
-    if (this.gear) {
-      this.scene.tweens.add({
-        targets: this.gear,
-        angle: 360,
-        duration: 800,
-        repeat: 2,
-      });
-    }
+  public setCpuUsage(usage: number) {
+    this.cpuUsage = Math.min(100, Math.max(0, usage));
   }
 
-  public isRepairable(): boolean {
-    return this.isBroken;
+  public getCpuUsage(): number {
+    return this.cpuUsage;
+  }
+
+  public setMemoryUsage(usage: number) {
+    this.memoryUsage = Math.min(100, Math.max(0, usage));
+  }
+
+  public getMemoryUsage(): number {
+    return this.memoryUsage;
+  }
+
+  public setInfected(infected: boolean) {
+    this.infected = infected;
+  }
+
+  public isInfected(): boolean {
+    return this.infected;
+  }
+
+  public destroy() {
+    this.sprite.destroy();
   }
 }
